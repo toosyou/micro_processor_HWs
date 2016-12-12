@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#define DEBOUNCE_NUMBER 500
+
 extern void GPIO_init(void);
 
 void clock_init(){ // 1Mhz
@@ -47,6 +49,7 @@ void SystemClock_Config(){
 
 	//SysTick->CTRL &= ~(uint32_t)0x00000001; //Clear ENABLE to 1b - enable SYSTICK.
 }
+
 void SysTick_Handler(void) {
 	static int on_or_not = 0;
  	//TODO: Toggle the LED
@@ -62,10 +65,10 @@ void SysTick_Handler(void) {
 int user_press_button(){
 	static int debounce = 0;
 	if( (GPIOC->IDR & 0b0010000000000000) == 0){ // pressed
-		debounce = debounce >= 1 ? 1 : debounce+1;
+		debounce = debounce >= DEBOUNCE_NUMBER ? DEBOUNCE_NUMBER : debounce+1;
 		return 0;
 	}
-	else if( debounce >= 1 ){
+	else if( debounce >= DEBOUNCE_NUMBER ){
 		debounce = 0;
 		return 1;
 	}
@@ -81,7 +84,7 @@ int main(){
 	while(1){
 		if(user_press_button()){
 			//TODO: Enable or disable Systick timer
-
+			SysTick->CTRL ^= (uint32_t)0x00000001;
 		}
 	}
 }
