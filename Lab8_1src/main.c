@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+extern void GPIO_init(void);
+
 void SystemClock_Config(){
  //TODO: Setup system clock and SysTick timer interrupt
 
@@ -11,15 +13,21 @@ void SystemClock_Config(){
 	SysTick->CTRL |= (uint32_t)0x00000004; //Set CLKSOURCE to 1b - processor clock (0b - processor clock / 16)
 	SysTick->CTRL |= (uint32_t)0x00000002; //Set TICKINT to 1b - enable interrupt on wrap.
 	SysTick->LOAD &= (uint32_t)0xFF000000;
-	SysTick->LOAD |= (uint32_t)0x16E3600; //Set Reload Register to 48000d -> 1ms.
+	SysTick->LOAD |= (uint32_t)2000000; //Set Reload Register to 48000d -> 1ms.
 										  //so *500 => 24000000d-> 500ms=0.5sec
 
-
-	SysTick->CTRL &= ~(uint32_t)0x00000001; //Clear ENABLE to 1b - enable SYSTICK.
+	//SysTick->CTRL &= ~(uint32_t)0x00000001; //Clear ENABLE to 1b - enable SYSTICK.
 }
 void SysTick_Handler(void) {
- //TODO: Toggle the LED
+	static int on_or_not = 0;
+ 	//TODO: Toggle the LED
+	if(on_or_not == 1)
+		GPIOA->ODR |= 0b100000;
+	else
+		GPIOA->ODR &= ~0b100000;
 
+	on_or_not = 1 - on_or_not;
+	return;
 }
 
 int user_press_button(){
@@ -40,11 +48,9 @@ int main(){
 	SystemClock_Config();
 	GPIO_init();
 	while(1){
-		if(user_press_button())
-			{
+		if(user_press_button()){
+			//TODO: Enable or disable Systick timer
 
-				//TODO: Enable or disable Systick timer
-			}
+		}
 	}
 }
-
