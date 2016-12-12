@@ -9,8 +9,6 @@ typedef unsigned int bool;
 #define true 1
 #define DEBOUNCE_NUMBER 500
 
-bool pressed[4][4];
-
 extern void max7219_init();
 extern void max7219_send(unsigned char address, unsigned char data);
 
@@ -36,9 +34,9 @@ void keypad_init(){
     //Set PB6,7,8,9 as INPUT mode
     GPIOB->MODER=GPIOB->MODER&0xFFF00FFF;
     //set PB6,7,8,9 is Pull-down input
-    GPIOB->PUPDR=GPIOB->PUPDR|0x55000;
+    GPIOB->PUPDR=GPIOB->PUPDR|0xAA000;
     //Set PB6,7,8,9 as medium speed mode
-    GPIOB->OSPEEDR=GPIOB->OSPEEDR|0x55000;
+    GPIOB->OSPEEDR=GPIOB->OSPEEDR|0xAA000;
 
     return;
 }
@@ -86,8 +84,58 @@ void SystemClock_Config(){
 	//SysTick->CTRL &= ~(uint32_t)0x00000001; //Clear ENABLE to 1b - enable SYSTICK.
 }
 
-void SysTick_Handler(void) {
+void display(int data){
 
+	if(data / 100000000 != 0)
+		return ;
+
+    if(data == -1){
+        for(int i=0;i<8;++i)
+            max7219_send(i+1, 0xF);
+        return;
+    }
+    if(data == -2){
+        for(int i=0;i<8;++i)
+            max7219_send(i+1, 0xF);
+        max7219_send(1, 1);
+        max7219_send(2, 0b1010);
+        return;
+    }
+    if(data == 0){
+        max7219_send(1, 0);
+        return;
+    }
+    int index = 0;
+    while(data != 0){
+        max7219_send(index+1, data%10);
+        data /= 10;
+        index++;
+    }
+
+    for(;index<8;++index)
+        max7219_send(index+1, 0xF);
+
+	return ;
+}
+
+void exti_config(void){
+    EXTI->IMR1 &= ~0b1111000000;
+    EXTI->EMR1 &= ~0b1111000000;
+    EXTI->FTSR1 |= 0b1111000000;
+}
+
+void SysTick_Handler(void) {
+    static int row = 0;
+    const int keys[4][4]={
+        {1,2,0,0},
+        {0,0,0,0},
+        {0,0,0,0},
+        {0,0,0,0}
+    };
+    int position_c=row+8;
+    if(row==3)position_c++;
+    GPIOA->ODR=(GPIOA->ODR&0xFFFFE8FF)|1<<position_c;
+    row = (row+1)%4;
 	return;
 }
 
@@ -98,6 +146,7 @@ int main(){
 
 	clock_init();
 	SystemClock_Config();
-    
+    while(1);
+
     return 0;
 }
