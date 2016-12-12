@@ -119,9 +119,28 @@ void display(int data){
 }
 
 void exti_config(void){
+    EXTI->IMR1 |= 0b1111000000;
+    EXTI->EMR1 |= 0b1111000000;
+    if(TRIM&0x01)
+    	EXTI->FTSR|=1<<0b1111000000;
+    if(TRIM&0x02)
+    	EXTI->RTSR|=1<<0b1111000000;
+
     EXTI->IMR1 &= ~0b1111000000;
     EXTI->EMR1 &= ~0b1111000000;
     EXTI->FTSR1 |= 0b1111000000;
+
+    EXTI->RTSR1 |= 0b1111000000;
+    EXTI->SWIER1
+	EXIT->PR1 |= 0b1111000000;
+}
+
+void EXTI1_IRQHandler(void)
+{
+	//printf("\r\nEXTI1 IRQHandler enter.\r\n");
+	EXTI->SWIER = 1<<1;     //产生一个EXTI2上的软件中断，让此中断挂起
+	//printf("\r\nEXTI1 IRQHandler return.\r\n");
+	EXTI->PR = 1<<1;
 }
 
 void SysTick_Handler(void) {
