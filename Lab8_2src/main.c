@@ -2,6 +2,7 @@
 #include "core_cm4.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include "stm32l4xx_ll_exti.h"
 
 typedef unsigned int bool;
 
@@ -12,6 +13,15 @@ typedef unsigned int bool;
 extern void max7219_init();
 extern void max7219_send(unsigned char address, unsigned char data);
 
+int activated_row = 0;
+const int keys[4][4]={
+    {1,2,0,0},
+    {0,0,0,0},
+    {0,0,0,0},
+    {0,0,0,0}
+};
+
+
 void GPIO_init(){
     RCC->AHB2ENR |= 0x2;
     GPIOB->MODER = 0b11111111111111111111010101111111;
@@ -21,7 +31,7 @@ void GPIO_init(){
 
 void keypad_init(){
     // SET keypad gpio OUTPUT //
-    RCC->AHB2ENR = RCC->AHB2ENR|0x2;
+    RCC->AHB2ENR = RCC->AHB2ENR|0x5;
     //Set PA8,9,10,12 as output mode
     GPIOA->MODER= GPIOA->MODER&0xFDD5FFFF;
     //set PA8,9,10,12 is Pull-up output
@@ -31,12 +41,12 @@ void keypad_init(){
     //Set PA8,9,10,12 as high
     GPIOA->ODR=GPIOA->ODR|10111<<8;
     // SET keypad gpio INPUT //
-    //Set PB6,7,8,9 as INPUT mode
-    GPIOB->MODER=GPIOB->MODER&0xFFF00FFF;
-    //set PB6,7,8,9 is Pull-down input
-    GPIOB->PUPDR=GPIOB->PUPDR|0xAA000;
-    //Set PB6,7,8,9 as medium speed mode
-    GPIOB->OSPEEDR=GPIOB->OSPEEDR|0xAA000;
+    //Set PC0,1,2,3 as INPUT mode
+    GPIOC->MODER=GPIOC->MODER&0xFFFFFF00;
+    //set PC0,1,2,3 is Pull-down input
+    GPIOC->PUPDR=GPIOC->PUPDR|0xAA;
+    //Set PC0,1,2,3 as medium speed mode
+    GPIOC->OSPEEDR=GPIOC->OSPEEDR|0xAA;
 
     return;
 }
@@ -119,42 +129,61 @@ void display(int data){
 }
 
 void exti_config(void){
-    EXTI->IMR1 |= 0b1111000000;
-    EXTI->EMR1 |= 0b1111000000;
-    if(TRIM&0x01)
-    	EXTI->FTSR|=1<<0b1111000000;
-    if(TRIM&0x02)
-    	EXTI->RTSR|=1<<0b1111000000;
 
-    EXTI->IMR1 &= ~0b1111000000;
-    EXTI->EMR1 &= ~0b1111000000;
-    EXTI->FTSR1 |= 0b1111000000;
+    EXTI->IMR1 |= 0b11111111111;
+    EXTI->EMR1 |= 0b11111111111;
+    EXTI->FTSR1 |= 0b11111111111;
+    EXTI->RTSR1 |= 0b11111111111;
 
-    EXTI->RTSR1 |= 0b1111000000;
-    EXTI->SWIER1
-	EXIT->PR1 |= 0b1111000000;
+	EXTI->PR1 |= 0b11111111111;
+    NVIC->ISER[0] |= 0b11111111111;
+    NVIC->IP[0] |= 0xFFFFFFFF;
+    NVIC->IP[1] |= 0xFFFFFFFF;
+    NVIC->IP[2] |= 0xFFFFFFFF;
+    NVIC->ICPR[0] = 0b11111111111;
+
+    return;
 }
 
-void EXTI1_IRQHandler(void)
-{
-	//printf("\r\nEXTI1 IRQHandler enter.\r\n");
-	EXTI->SWIER = 1<<1;     //产生一个EXTI2上的软件中断，让此中断挂起
-	//printf("\r\nEXTI1 IRQHandler return.\r\n");
-	EXTI->PR = 1<<1;
+void scan(int column){
+    int position_r=column+6;
+    int flag_keypad_r=GPIOB->IDR&1<<position_r;
+    if(flag_keypad_r!=0){
+        display(keys[activated_row][column]);
+    }
+    return;
 }
+
+void EXTI0_IRQHandler(void){
+	EXTI->PR1 = 1<<0;
+    display(6);
+    //scan(0);
+    return;
+}
+void EXTI1_IRQHandler(void){
+	EXTI->PR1 = 1<<1;
+    display(7);
+    //scan(1);
+}
+void EXTI2_IRQHandler(void){
+	EXTI->PR1 = 1<<2;
+    display(8);
+    //scan(2);
+}
+void EXTI3_IRQHandler(void){
+	EXTI->PR1 = 1<<3;
+    display(9);
+    //scan(3);
+}
+
+
 
 void SysTick_Handler(void) {
-    static int row = 0;
-    const int keys[4][4]={
-        {1,2,0,0},
-        {0,0,0,0},
-        {0,0,0,0},
-        {0,0,0,0}
-    };
-    int position_c=row+8;
-    if(row==3)position_c++;
+    activated_row = 0;
+    int position_c=activated_row+8;
+    if(activated_row==3)position_c++;
     GPIOA->ODR=(GPIOA->ODR&0xFFFFE8FF)|1<<position_c;
-    row = (row+1)%4;
+    //activated_row = (activated_row+1)%4;
 	return;
 }
 
@@ -162,10 +191,22 @@ int main(){
     GPIO_init();
     keypad_init();
     max7219_init();
+    exti_config();
 
 	clock_init();
 	SystemClock_Config();
-    while(1);
+    display(5);
+    EXTI0_IRQHandler();
+    while(1){
+        /*for(int i=0;i<500000;++i){
+            int position_r=0;
+            int flag_keypad_r=GPIOC->IDR&1<<position_r;
+            if(flag_keypad_r != 0){
+                NVIC->STIR |=   1;
+                EXTI->SWIER1 |= 1;
+            }
+        }*/
+    }
 
     return 0;
 }
