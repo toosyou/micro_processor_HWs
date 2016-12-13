@@ -2,7 +2,7 @@
 #include "core_cm4.h"
 #include <stdlib.h>
 #include <stdio.h>
-#include "stm32l4xx_ll_exti.h"
+//#include "stm32l4xx_ll_exti.h"
 
 typedef unsigned int bool;
 
@@ -15,9 +15,9 @@ extern void max7219_send(unsigned char address, unsigned char data);
 
 int activated_row = 0;
 const int keys[4][4]={
-    {1,2,0,0},
-    {0,0,0,0},
-    {0,0,0,0},
+    {1,2,3,},
+    {4,5,6,0},
+    {7,8,9,0},
     {0,0,0,0}
 };
 
@@ -129,18 +129,25 @@ void display(int data){
 }
 
 void exti_config(void){
+	RCC->APB2ENR |= 1;
+	RCC->APB2ENR &= 1;
+    EXTI->IMR1 |= 0b1111000000;
+    //EXTI->EMR1 |= 0b11111111111;
+    EXTI->FTSR1 |= 0b1111000000;	//falling
+    SYSCFG->EXTICR[1] |= 0b010001000100010;
+    SYSCFG->EXTICR[1] &= 0b010101010101010;
+    //SYSCFG->EXTICR[3] |= 0b010001000100010;
+    //SYSCFG->EXTICR[3] &= 0b010101010101010;
 
-    EXTI->IMR1 |= 0b11111111111;
-    EXTI->EMR1 |= 0b11111111111;
-    EXTI->FTSR1 |= 0b11111111111;
-    EXTI->RTSR1 |= 0b11111111111;
 
-	EXTI->PR1 |= 0b11111111111;
-    NVIC->ISER[0] |= 0b11111111111;
-    NVIC->IP[0] |= 0xFFFFFFFF;
-    NVIC->IP[1] |= 0xFFFFFFFF;
-    NVIC->IP[2] |= 0xFFFFFFFF;
-    NVIC->ICPR[0] = 0b11111111111;
+    //EXTI->RTSR1 |= 0b11111111111;
+
+	//EXTI->PR1 |= 0b1111000000;
+    //NVIC->ISER[0] |= 0b11111111111;
+    //NVIC->IP[0] |= 0xFFFFFFFF;
+    //NVIC->IP[1] |= 0xFFFFFFFF;
+    //NVIC->IP[2] |= 0xFFFFFFFF;
+    //NVIC->ICPR[0] = 0b11111111111;
 
     return;
 }
@@ -198,14 +205,14 @@ int main(){
     display(5);
     EXTI0_IRQHandler();
     while(1){
-        /*for(int i=0;i<500000;++i){
+        for(int i=0;i<500000;++i){
             int position_r=0;
             int flag_keypad_r=GPIOC->IDR&1<<position_r;
             if(flag_keypad_r != 0){
                 NVIC->STIR |=   1;
                 EXTI->SWIER1 |= 1;
             }
-        }*/
+        }
     }
 
     return 0;
