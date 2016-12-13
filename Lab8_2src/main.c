@@ -130,24 +130,25 @@ void display(int data){
 
 void exti_config(void){
 	RCC->APB2ENR |= 1;
-	RCC->APB2ENR &= 1;
-    EXTI->IMR1 |= 0b1111000000;
-    //EXTI->EMR1 |= 0b11111111111;
-    EXTI->FTSR1 |= 0b1111000000;	//falling
-    SYSCFG->EXTICR[1] |= 0b010001000100010;
-    SYSCFG->EXTICR[1] &= 0b010101010101010;
+    EXTI->IMR1 |= 0b1111;
+    //EXTI->EMR1 |= 0b1111;
+    EXTI->FTSR1 |= 0b1111;	//falling
+    SYSCFG->EXTICR[0] &= 0b11111111111111111010101010101010;
+    //SYSCFG->EXTICR[1] &= 0b11111111111111111010101010101010;
+    //SYSCFG->EXTICR[2] &= 0b11111111111111111010101010101010;
+    //SYSCFG->EXTICR[3] &= 0b11111111111111111010101010101010;
+
     //SYSCFG->EXTICR[3] |= 0b010001000100010;
     //SYSCFG->EXTICR[3] &= 0b010101010101010;
-
 
     //EXTI->RTSR1 |= 0b11111111111;
 
 	//EXTI->PR1 |= 0b1111000000;
-    //NVIC->ISER[0] |= 0b11111111111;
-    //NVIC->IP[0] |= 0xFFFFFFFF;
-    //NVIC->IP[1] |= 0xFFFFFFFF;
-    //NVIC->IP[2] |= 0xFFFFFFFF;
-    //NVIC->ICPR[0] = 0b11111111111;
+    NVIC->ISER[0] |= 0b1111;
+    NVIC->IP[0] |= 0xFFFFFFFF;
+    NVIC->IP[1] |= 0xFFFFFFFF;
+    NVIC->IP[2] |= 0xFFFFFFFF;
+    NVIC->ICPR[0] |= 0b11111111111;
 
     return;
 }
@@ -161,23 +162,23 @@ void scan(int column){
     return;
 }
 
-void EXTI0_IRQHandler(void){
-	EXTI->PR1 = 1<<0;
+void exti0(void){
+	//EXTI->PR1 = 1<<0;
     display(6);
     //scan(0);
     return;
 }
-void EXTI1_IRQHandler(void){
+void exti1(void){
 	EXTI->PR1 = 1<<1;
     display(7);
     //scan(1);
 }
-void EXTI2_IRQHandler(void){
+void exti2(void){
 	EXTI->PR1 = 1<<2;
     display(8);
     //scan(2);
 }
-void EXTI3_IRQHandler(void){
+void exti3(void){
 	EXTI->PR1 = 1<<3;
     display(9);
     //scan(3);
@@ -189,7 +190,8 @@ void SysTick_Handler(void) {
     activated_row = 0;
     int position_c=activated_row+8;
     if(activated_row==3)position_c++;
-    GPIOA->ODR=(GPIOA->ODR&0xFFFFE8FF)|1<<position_c;
+    GPIOA->ODR |= 0b1011100000000;
+    //GPIOA->ODR=(GPIOA->ODR&0xFFFFE8FF)|1<<position_c;
     //activated_row = (activated_row+1)%4;
 	return;
 }
@@ -203,16 +205,8 @@ int main(){
 	clock_init();
 	SystemClock_Config();
     display(5);
-    EXTI0_IRQHandler();
+    exti1();
     while(1){
-        for(int i=0;i<500000;++i){
-            int position_r=0;
-            int flag_keypad_r=GPIOC->IDR&1<<position_r;
-            if(flag_keypad_r != 0){
-                NVIC->STIR |=   1;
-                EXTI->SWIER1 |= 1;
-            }
-        }
     }
 
     return 0;
