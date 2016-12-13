@@ -17,10 +17,10 @@ bool pressed[4][4];
 
 int activated_row = 0;
 const int keys[4][4]={
-    {1,2,3,0},
-    {4,5,6,0},
-    {7,8,9,0},
-    {0,0,0,0}
+    {15,7,4,1},
+    {0,8,5,2},
+    {14,9,6,3},
+    {13,12,11,10}
 };
 
 
@@ -43,12 +43,12 @@ void keypad_init(){
     //Set PA8,9,10,12 as high
     GPIOA->ODR=GPIOA->ODR|10111<<8;
     // SET keypad gpio INPUT //
-    //Set PC5,6,7,8 as INPUT mode
-    GPIOC->MODER=GPIOC->MODER&0xFFFC03FF;
-    //set PC5,6,7,8 is Pull-down input
-    GPIOC->PUPDR=GPIOC->PUPDR|0x2A800;
-    //Set PC5,6,7,8 as medium speed mode
-    GPIOC->OSPEEDR=GPIOC->OSPEEDR|0x3FC00;
+    //Set PC6,7,8,9 as INPUT mode
+    GPIOC->MODER=GPIOC->MODER&0xFFF00FFF;
+    //set PC6,7,8,9 is Pull-down input
+    GPIOC->PUPDR=GPIOC->PUPDR|0xAA000;
+    //Set PC6,7,8,9 as medium speed mode
+    GPIOC->OSPEEDR=GPIOC->OSPEEDR|0xAA000;
 
     return;
 }
@@ -114,6 +114,8 @@ void display(int data){
         return;
     }
     if(data == 0){
+        for(int i=0;i<8;++i)
+            max7219_send(i+1, 0xF);
         max7219_send(1, 0);
         return;
     }
@@ -132,46 +134,30 @@ void display(int data){
 
 void exti_config(void){
 	RCC->APB2ENR = 1;
-    SYSCFG->EXTICR[1] = 0x2220;
-    SYSCFG->EXTICR[2] = 0x0002;
+    SYSCFG->EXTICR[1] = 0x2200;
+    SYSCFG->EXTICR[2] = 0x0022;
 
-    EXTI->IMR1 |= (0xF << 5);
+    EXTI->IMR1 |= (0xF << 6);
     EXTI->RTSR1 = 0;
-    EXTI->FTSR1 |= (0xF << 5);	//falling
+    EXTI->FTSR1 |= (0xF << 6);	//falling
     NVIC->ISER[0] |= (1<<EXTI9_5_IRQn);
-    NVIC->ISPR[0] = (1<<EXTI9_5_IRQn);
+    NVIC->ISPR[0] |= (1<<EXTI9_5_IRQn);
 
     return;
 }
 
 void scan(int column){
     int position_r=column+6;
-    int flag_keypad_r=GPIOB->IDR&1<<position_r;
+    int flag_keypad_r=GPIOC->IDR&1<<position_r;
     if(flag_keypad_r!=0){
-        display(keys[activated_row][column]);
+        display(keys[(activated_row+3)%4][column]);
     }
     return;
 }
 
-int keypad_scan(){
-	for(int i=0;i<4;i++){ //scan keypad from first column
-	                    int position_c=i+8;
-	                    if(i==3)position_c++;
-	                    //set PA8,9,10,12(column) low and set pin high from PA8
-	                    	GPIOA->ODR=(GPIOA->ODR&0xFFFFE8FF)|1<<position_c;
-	                    for(int j=0;j<4;j++){ //read input from first row
-	                        int position_r=j+5;
-	                        if(j==3) position_r++;
-	                        int flag_keypad_r=GPIOB->IDR&1<<position_r;
-	                        if(flag_keypad_r!=0)display(keys[j][i]);
-	                    }
 
-						}
-}
-
-
-void EXTI9_5(void)
-{
+void EXTI9_5(void){
+    EXTI->PR1 = 0xF << 6;
 	scan(0);
 	scan(1);
 	scan(2);
@@ -179,38 +165,13 @@ void EXTI9_5(void)
 
     return;
 }
-/*
-void exti0(void){
-	//EXTI->PR1 = 1<<0;
-    display(6);
-    //scan(0);
-    return;
-}
-void exti1(void){
-	//EXTI->PR1 = 1<<1;
-    display(7);
-    //scan(1);
-}
-void exti2(void){
-	//EXTI->PR1 = 1<<2;
-    display(8);
-    //scan(2);
-}
-void exti3(void){
-	//EXTI->PR1 = 1<<3;
-    display(9);
-    //scan(3);
-}
-
-*/
 
 void SysTick_Handler(void) {
-    activated_row = 0;
     int position_c=activated_row+8;
     if(activated_row==3)position_c++;
     GPIOA->ODR |= 0b1011100000000;
-    //GPIOA->ODR=(GPIOA->ODR&0xFFFFE8FF)|1<<position_c;
-    //activated_row = (activated_row+1)%4;
+    GPIOA->ODR=(GPIOA->ODR&0xFFFFE8FF)|1<<position_c;
+    activated_row = (activated_row+1)%4;
 	return;
 }
 
@@ -222,9 +183,8 @@ int main(){
 
 	clock_init();
 	SystemClock_Config();
-    display(5);
-    //exti1();
-    EXTI9_5();
+    display(999);
+
     while(1){
     }
 
