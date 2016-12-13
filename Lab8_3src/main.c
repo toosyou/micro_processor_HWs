@@ -4,6 +4,7 @@
 #include <stdio.h>
 
 typedef unsigned int bool;
+
 #define false 0
 #define true 1
 
@@ -11,6 +12,11 @@ extern void max7219_init();
 extern void max7219_send(unsigned char address, unsigned char data);
 
 bool pressed[4][4];
+
+bool button_pushed = false;
+bool init_button_pressed_fuck_off = false;
+int last_value = 0;
+bool need_to_be_shut_up = false;
 
 int activated_row = 0;
 const int keys[4][4]={
@@ -21,10 +27,22 @@ const int keys[4][4]={
 };
 
 void GPIO_init(){	//PB3,PB4,PB5	//7-segment
-    RCC->AHB2ENR |= 0x2;
+    RCC->AHB2ENR |= 0x7;
     GPIOB->MODER = 0b11111111111111111111010101111111;
     GPIOB->OSPEEDR = 0b101010000000;
     GPIOB->PUPDR = 0b11111111111111111111000000111111;
+
+    GPIOC->MODER &= 0b11110011111111111111111111111111;//PA13
+    GPIOC->OSPEEDR |= 0b1100000000000000000000000000;
+    GPIOC->PUPDR |= 0b1000000000000000000000000000;
+
+    GPIOA->MODER &= 0xFFFFFFFE;
+    GPIOA->OSPEEDR |= 0b10;
+    GPIOA->AFR[0] |= 0x00000001;
+    GPIOA->AFR[0] &= 0xFFFFFFF1;
+    GPIOA->AFR[1] |= 0x00000001;
+    GPIOA->AFR[1] &= 0xFFFFFFF1;
+
 }
 
 void keypad_init(){
@@ -97,23 +115,35 @@ void exti_config(void){	//input: PA6,7,8,9
 	RCC->APB2ENR = 1;
     SYSCFG->EXTICR[1] = 0x2200;
     SYSCFG->EXTICR[2] = 0x0022;
+    SYSCFG->EXTICR[3] = 0x0020;
 
-    EXTI->IMR1 |= (0xF << 6);
+    EXTI->IMR1 |= (0b10001111 << 6);
     EXTI->RTSR1 = 0;
-    EXTI->FTSR1 |= (0xF << 6);	//falling
+    EXTI->FTSR1 |= (0b10001111 << 6);	//falling
     NVIC->ISER[0] |= (1<<EXTI9_5_IRQn);
     NVIC->ISPR[0] |= (1<<EXTI9_5_IRQn);
+    NVIC->ISER[1] |= (1<<(EXTI15_10_IRQn-32));
+    NVIC->ISPR[1] |= (1<<(EXTI15_10_IRQn-32));
+    NVIC->IP[3] |= 0xFF00;
 
     return;
 }
 
 void EXTI9_5(void){
     EXTI->PR1 = 0xF << 6;
-	scan(0);
-	scan(1);
-	scan(2);
-	scan(3);
 
+    return;
+}
+
+void EXTI15_10(void){
+    EXTI->PR1 = 1 << 13;
+    if(init_button_pressed_fuck_off == true && last_value != 0)
+        button_pushed = true;
+    if(need_to_be_shut_up == true){
+        button_pushed = false;
+        need_to_be_shut_up = false;
+        TIM2->CR1 &= ~TIM_CR1_CEN;
+    }
     return;
 }
 
@@ -128,7 +158,7 @@ void clock_init(){ // 10Mhz
     RCC->CR &= ~RCC_CR_PLLON;
     while(RCC->CR & RCC_CR_PLLRDY);
 
-	RCC->CFGR |= b1010<<4;
+	RCC->CFGR |= 0b1010<<4;
 	RCC->CFGR &= 0xFFFFFFAF;
 
 	RCC->PLLCFGR |= 0b001000000000001010000010010;
@@ -144,6 +174,71 @@ void clock_init(){ // 10Mhz
 }
 
 
+void InitializeTimer(uint32_t presc){
+
+	RCC->APB1ENR1 |= RCC_APB1ENR1_TIM2EN;
+	TIM2->CR1 &= 0xFFFFFF8F; // count up & Edge-aligned
+    TIM2->CR1 |= 0x80;
+
+	TIM2->ARR = (uint32_t)100;//Reload value
+	TIM2->PSC = (uint32_t)presc;//Prescaler
+	TIM2->EGR = TIM_EGR_UG;//Reinitialize the counter
+
+    TIM2->CCMR1 |= 6 << 4;
+    TIM2->CCMR1 |= 1 << 3;
+
+    TIM2->CCR1 = 50;
+
+    TIM2->CCER |= 1;
+    TIM2->BDTR |= 1<<15;
+    //TIM2->CR1 |= TIM_CR1_CEN;
+}
+
+
+void SysTick_Handler(){
+
+    if(button_pushed == true){
+        last_value = last_value - 1 >= 0 ? last_value-1: 0;
+        display(last_value);
+        if(last_value == 0){
+            TIM2->CR1 |= TIM_CR1_CEN;
+            need_to_be_shut_up = true;
+        }
+    }
+
+
+    return;
+}
+
+int keypad_scan(){
+    bool yes_return = false;
+    int flag_keypad=GPIOC->IDR&0xF<<6;
+    if(flag_keypad!=0){
+        int flag_debounce = 1;
+        if(flag_debounce!=0){
+            for(int i=0;i<4;i++){ //scan keypad from first column
+                int position_c=i+8;
+                if(i==3)position_c++;
+                //set PA8,9,10,12(column) low and set pin high from PA8
+                GPIOA->ODR=(GPIOA->ODR&0xFFFFE8FF)|1<<position_c;
+                for(int j=0;j<4;j++){ //read input from first row
+                    int position_r=j+6;
+                    int flag_keypad_r=GPIOC->IDR&1<<position_r;
+                    if(flag_keypad_r!=0){
+                        yes_return = true;
+                        pressed[i][j] = true;
+                    }
+                    else
+                        pressed[i][j] = false;
+                }
+            }
+        }
+        GPIOA->ODR=GPIOA->ODR|10111<<8; //set PA8,9,10,12(column) high
+        return 1;
+    }
+    return -1;
+}
+
 void SystemClock_Config(){
  //TODO: Setup system clock and SysTick timer interrupt
 
@@ -152,13 +247,14 @@ void SystemClock_Config(){
 	SysTick->CTRL |= (uint32_t)0x00000004; //Set CLKSOURCE to 1b - processor clock (0b - processor clock / 16)
 	SysTick->CTRL |= (uint32_t)0x00000002; //Set TICKINT to 1b - enable interrupt on wrap.
 	SysTick->LOAD &= (uint32_t)0xFF000000;
-	SysTick->LOAD |= (uint32_t)1000000; //Set Reload Register to 48000d -> 1ms.
+	SysTick->LOAD |= (uint32_t)10000000; //Set Reload Register to 48000d -> 1ms.
 										  //so *500 => 24000000d-> 500ms=0.5sec
 
 	//SysTick->CTRL &= ~(uint32_t)0x00000001; //Clear ENABLE to 1b - enable SYSTICK.
 }
 
 int main(){
+	InitializeTimer(153);
     GPIO_init();
     keypad_init();
     max7219_init();
@@ -169,7 +265,20 @@ int main(){
     display(999);
 
     while(1){
+        init_button_pressed_fuck_off = true;
+        if(button_pushed == false){
+            if(keypad_scan() == 1){
+                for(int i=0;i<4;++i){
+                    for(int j=0;j<4;++j){
+                        if(pressed[i][j] == true){
+                            last_value = keys[i][j];
+                            display(keys[i][j]);
+                        }
+                    }
+                }
+            }
+        }
     }
 
-
+    return 0;
 }
