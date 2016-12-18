@@ -48,15 +48,15 @@ GPIO_init:
 
 	ldr r0, =#0b00000000000000000101010101010101	//input:PA0~7
 	LDR r1, =GPIOA_MODER
-	ldr r2, [r1]
+	str r0, [r1]
 
 	ldr r0, =#0b0	//input:PA0~7
 	LDR r1, =GPIOA_OTYPER
-	ldr r2, [r1]
+	str r0, [r1]
 
 	ldr r0, =#0b11111111111111110101010101010101	//input:PA0~7
 	LDR r1, =GPIOA_PUPDR
-	ldr r2, [r1]
+	str r0, [r1]
 
 	ldr r0, =#0xFFFF
 	ldr r1, =GPIOA_OSPEEDR
@@ -67,15 +67,15 @@ GPIO_init:
 
 	ldr r0, =#0b01010100000000000000000000000000	//input:PC13~15
 	LDR r1, =GPIOC_MODER
-	ldr r2, [r1]
+	str r0, [r1]
 
 	ldr r0, =#0b0	//input:PA0~7
 	LDR r1, =GPIOC_OTYPER
-	ldr r2, [r1]
+	str r0, [r1]
 
 	ldr r0, =#0b01010111111111111111111111111111	//input:PA0~7
 	LDR r1, =GPIOC_PUPDR
-	ldr r2, [r1]
+	str r0, [r1]
 
 	ldr r0, =#0xFC000000
 	ldr r1, =GPIOC_OSPEEDR
