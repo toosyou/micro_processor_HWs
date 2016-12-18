@@ -11,6 +11,14 @@ typedef unsigned int bool;
 
 //#define write2LCD_delay_for_count 500
 
+
+
+
+void SysTick_Handler(void) {
+
+	display_41();
+}
+
 void GPIO_init(void){
     RCC->AHB2ENR |= 6;
     GPIOC->MODER &= 0b11111111111111110101010101010101;
@@ -39,13 +47,13 @@ void WriteToLCD(int input, bool isCmd){
     GPIOB->ODR |= 0b1000000000000000;
 
     //do nothing
-    for(int i=0;i<5000;++i);
+    for(int i=0;i<50;++i);
 
     //turn enable off
     GPIOB->ODR &= 0b0111111111111111;
 
     //do nothing
-    for(int i=0;i<5000;++i);
+    for(int i=0;i<50;++i);
 
     return;
 }
@@ -57,16 +65,45 @@ void init_LCD() {
 	WriteToLCD(0x0F, true); // Display on
 	WriteToLCD(0x01, true); // Clear Screen
 	WriteToLCD(0x80, true); // Move to top left
+
 }
 
+void display_41()
+{
+	static int time=0;
+	if (time==18)
+	{
+		//WriteToLCD(0x01, true);
+		WriteToLCD(0b11000000,true);
+
+
+	}
+	else if (time==36)
+	{
+		WriteToLCD(0x01, true); // Clear Screen
+		time=-1;
+	}
+
+	WriteToLCD(0b00010000, true);
+	WriteToLCD(0b00010000, true);
+	WriteToLCD(0b11111110,false);
+	WriteToLCD(0b00110100,false);
+	WriteToLCD(0b00110001,false);
+	time++;
+
+}
+/*
 void SysTick_Handler() {
     
 }
-
+*/
 int main() {
-
+	//clock_init();
+	//SystemClock_Config();
     GPIO_init();
 	init_LCD();
+
+
 	SysTick_Config(1300000UL);
 	while(1){
 
