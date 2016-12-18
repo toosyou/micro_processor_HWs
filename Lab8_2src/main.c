@@ -132,7 +132,7 @@ void display(int data){
 	return ;
 }
 
-void exti_config(void){
+void exti_config(void){	//input: PA6,7,8,9
 	RCC->APB2ENR = 1;
     SYSCFG->EXTICR[1] = 0x2200;
     SYSCFG->EXTICR[2] = 0x0022;
