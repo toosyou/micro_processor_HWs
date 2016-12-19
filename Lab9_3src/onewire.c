@@ -112,6 +112,8 @@ void OneWire_WriteBit(OneWire_t* OneWireStruct, uint8_t bit) {
  */
 uint8_t OneWire_ReadBit(OneWire_t* OneWireStruct) {
 	// TODO
+    unsigned data;
+
     set_high(OneWireStruct);
     delay_ms(2);
     set_low(OneWireStruct);
@@ -119,11 +121,37 @@ uint8_t OneWire_ReadBit(OneWire_t* OneWireStruct) {
     set_high(OneWireStruct);
     set_input(OneWireStruct);
     delay_ms(4);
-    if (){
-
+    for(int i=0;i<8;i++)
+    {
+        if (GetDQ())
+            data|=0x80;
+        else
+            data&=0x7f;
+        
     }
     delay_ms(62);
     return 0;
+
+    /*
+ unsigned char i,Dat;  
+ SetDQ();  /
+ Delay_us(5);  /
+ for(i=8;i>0;i--)  
+ {  
+   Dat >>= 1;  
+    ResetDQ();     //从读时序开始到采样信号线必须在15u内，且采样尽量安排在15u的最后  
+  Delay_us(5);   //5us  
+  SetDQ();  
+  Delay_us(5);   //5us  
+  if(GetDQ())  
+    Dat|=0x80;  
+  else  
+   Dat&=0x7f;    
+  Delay_us(65);   //65us  
+  SetDQ();  
+ }  
+ return Dat; 
+    */
 }
 
 /* A convenient API to write 1 byte through OneWireStruct
