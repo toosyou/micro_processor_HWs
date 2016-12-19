@@ -90,13 +90,6 @@ void OneWire_WriteBit(OneWire_t* OneWireStruct, uint8_t bit) {
 	ONEWIRE_INPUT(OneWireStruct);
 }
 
-
-char change_me[SIZE_CHANGE_ME+1] = "ABCDEFGHIJ";
-
-void display_41();
-
-void display_change_me();
-
 void SysTick_Handler(void) {
     if(mode == 0)
 	   display_41();
@@ -116,7 +109,7 @@ void GPIO_init(void){
 
     return;
 }
-
+/*
 bool bottom_clicked(void){
     static int debounce = 0;
     if( (GPIOC->IDR & 0b10000000000000) == 0 ){ // pressing
@@ -131,7 +124,7 @@ bool bottom_clicked(void){
             debounce = 0;
     }
     return false;
-}
+}*/
 
 void WriteToLCD(int input, bool isCmd){
 
@@ -169,6 +162,7 @@ void init_LCD() {
 
 }
 
+/*
 void display_41(){
 
     //clear last 4
@@ -198,15 +192,15 @@ void display_41(){
     else if(index_4 == 80)
         index_4 = 0;
 
-}
-
+}*/
+/*
 void display_change_me(){
     if(index_change_me == 0)
         WriteToLCD(1, true); // clean screen
     WriteToLCD(128 + index_change_me, true);
     WriteToLCD(change_me[index_change_me], false);
     index_change_me = (index_change_me + 1) % SIZE_CHANGE_ME;
-}
+}*/
 
 int main() {
 
