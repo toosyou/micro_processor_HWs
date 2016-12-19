@@ -7,15 +7,9 @@ typedef unsigned int bool;
 #define false 0
 #define true 1
 
-//extern void GPIO_init();
-
-//#define write2LCD_delay_for_count 500
-
-
-
+void display_41();
 
 void SysTick_Handler(void) {
-
 	display_41();
 }
 
@@ -47,62 +41,68 @@ void WriteToLCD(int input, bool isCmd){
     GPIOB->ODR |= 0b1000000000000000;
 
     //do nothing
-    for(int i=0;i<50;++i);
+    for(int i=0;i<500;++i);
 
     //turn enable off
     GPIOB->ODR &= 0b0111111111111111;
 
     //do nothing
-    for(int i=0;i<50;++i);
+    for(int i=0;i<500;++i);
 
     return;
 }
+
 void init_LCD() {
 
 	// LCD Register
 	WriteToLCD(0x38, true); // Function Setting
 	WriteToLCD(0x06, true); // Entering Mode
-	WriteToLCD(0x0F, true); // Display on
+	WriteToLCD(0x0E, true); // Display on
 	WriteToLCD(0x01, true); // Clear Screen
 	WriteToLCD(0x80, true); // Move to top left
 
 }
 
-void display_41()
-{
-	static int time=0;
-	if (time==18)
-	{
-		//WriteToLCD(0x01, true);
-		WriteToLCD(0b11000000,true);
+void display_41(){
+
+    static int index_4 = 0;
+    static int index_1 = 1;
+    static int last_index_4 = 0;
+    static int last_index_1 = 0;
+
+    //clear last 4
+    WriteToLCD(128 + last_index_4, true);
+    WriteToLCD(0b11111110,false);
+
+    //write 4
+    WriteToLCD(128 + index_4, true);
+    WriteToLCD(0b00110100,false);
+
+    //write 1
+    WriteToLCD(128 + index_1, true);
+    WriteToLCD(0b00110001,false);
 
 
-	}
-	else if (time==36)
-	{
-		WriteToLCD(0x01, true); // Clear Screen
-		time=-1;
-	}
+    last_index_4 = index_4;
+    last_index_1 = index_1;
+    index_1++;
+    index_4++;
 
-	WriteToLCD(0b00010000, true);
-	WriteToLCD(0b00010000, true);
-	WriteToLCD(0b11111110,false);
-	WriteToLCD(0b00110100,false);
-	WriteToLCD(0b00110001,false);
-	time++;
+    if(index_1 == 16)
+        index_1 += 48;
+    else if(index_1 == 80)
+        index_1 = 0;
+    if(index_4 == 16)
+        index_4 += 48;
+    else if(index_4 == 80)
+        index_4 = 0;
 
 }
-/*
-void SysTick_Handler() {
-    
-}
-*/
+
 int main() {
-	//clock_init();
-	//SystemClock_Config();
+
     GPIO_init();
 	init_LCD();
-
 
 	SysTick_Config(1300000UL);
 	while(1){
