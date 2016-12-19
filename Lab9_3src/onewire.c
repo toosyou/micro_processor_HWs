@@ -112,6 +112,17 @@ void OneWire_WriteBit(OneWire_t* OneWireStruct, uint8_t bit) {
  */
 uint8_t OneWire_ReadBit(OneWire_t* OneWireStruct) {
 	// TODO
+    set_high(OneWireStruct);
+    delay_ms(2);
+    set_low(OneWireStruct);
+    delay_ms(2);
+    set_high(OneWireStruct);
+    set_input(OneWireStruct);
+    delay_ms(4);
+    if (){
+
+    }
+    delay_ms(62);
     return 0;
 }
 
