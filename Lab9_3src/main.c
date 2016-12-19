@@ -90,28 +90,6 @@ void OneWire_WriteBit(OneWire_t* OneWireStruct, uint8_t bit) {
 	ONEWIRE_INPUT(OneWireStruct);
 }
 
-int cgram[2][8]={
-    {
-        0b11111,
-        0b10001,
-        0b10001,
-        0b00111,
-        0b00100,
-        0b00000,
-        0b00100,
-        0b00000
-    },
-    {
-        0b01110,
-        0b11111,
-        0b11111,
-        0b11111,
-        0b01110,
-        0b00000,
-        0b01110,
-        0b00000
-    }
-};
 
 char change_me[SIZE_CHANGE_ME+1] = "ABCDEFGHIJ";
 
