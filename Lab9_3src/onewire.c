@@ -91,10 +91,17 @@ uint8_t OneWire_Reset(OneWire_t* OneWireStruct) {
 void OneWire_WriteBit(OneWire_t* OneWireStruct, uint8_t bit) {
 	// TODO
     if(bit == 1){
-
+        set_output(OneWireStruct);
+        set_low(OneWireStruct);
+        delay_ms(2);
+        set_input(OneWireStruct);
+        delay_ms(15);
     }
     else{
-
+        set_output(OneWireStruct);
+        set_low(OneWireStruct);
+        delay_ms(80);
+        set_high(OneWireStruct);
     }
 }
 
@@ -116,6 +123,15 @@ uint8_t OneWire_ReadBit(OneWire_t* OneWireStruct) {
  */
 void OneWire_WriteByte(OneWire_t* OneWireStruct, uint8_t byte) {
 	// TODO
+    set_output(OneWireStruct);
+    set_low(OneWireStruct);
+    delay_ms(2);
+    for(int i=0;i<8;++i){
+        OneWire_WriteBit(OneWireStruct, byte&1);
+        byte >>= 1;
+    }
+    set_high(OneWireStruct);
+    return;
 }
 
 /* A convenient API to read 1 byte through OneWireStruct
