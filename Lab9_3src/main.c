@@ -46,8 +46,8 @@ void WriteToLCD(int input, bool isCmd);
 
 void SysTick_Handler(void) {
 	int temp = (int)read_temperature();
-	WriteToLCD(temp/10, false);
-	WriteToLCD(temp%10, false);
+	WriteToLCD('a', false);
+	WriteToLCD(temp%10+1, false);
 }
 
 void GPIO_init(void){
@@ -56,9 +56,12 @@ void GPIO_init(void){
     GPIOC->PUPDR =  0b11111111111111110101010101010101;
     GPIOC->OSPEEDR |= 0x4005555;
 
-    GPIOB->MODER &= 0b01010111111111111111111101111111;
-    GPIOB->PUPDR =  0b01010111111111111111111101111111;
-    GPIOB->OSPEEDR |= 0x54000040;
+    GPIOB->MODER &= 0b01010111110111111111111111111111;
+    GPIOB->PUPDR =  0b01010111110111111111111111111111;
+    GPIOB->OSPEEDR |= 0x54000000;
+	//pb3 01
+	GPIOB->OSPEEDR |= (1<<(10*2));
+	GPIOB->OSPEEDR &= ~(1<<(10*2+1));
 
     return;
 }
@@ -150,8 +153,8 @@ float read_temperature(void){
 
 	float rtn = 0.0f;
 	OneWire_t one_wire_structure;
-	OneWire_Init(&one_wire_structure, GPIOB, 3);
-	OneWire_Reset(&one_wire_structure);
+	OneWire_Init(&one_wire_structure, GPIOB, 10);
+	while(OneWire_Reset(&one_wire_structure));
 	DS18B20_ConvT(&one_wire_structure, TM_DS18B20_Resolution_9bits);
 	while(DS18B20_Done(&one_wire_structure));
 	DS18B20_Read(&one_wire_structure, &rtn);
@@ -173,8 +176,8 @@ int main() {
     }
 
 
-	SysTick_Config(1300000UL);
-	read_temperature();
+	//SysTick_Config(1300000UL);
+	float temp = read_temperature();
 	while(1){
         if(bottom_clicked() == true){
             index_4 = 0;
