@@ -24,18 +24,18 @@ void set_output(OneWire_t *ows){
     return ;
 }
 
-void set_low(OneWire_t *ows){
+void set_low(OneWire_t *ows){   //set to 0
     // set dq low
     ows->GPIOx->ODR &= ~(1 << ows->GPIO_Pin);
     return ;
 }
 
-void set_high(OneWire_t *ows){
+void set_high(OneWire_t *ows){  //set to 1
     ows->GPIOx->ODR |= 1 << ows->GPIO_Pin;
     return ;
 }
 
-int read_wire(OneWire_t *ows){
+int read(OneWire_t *ows){
     return (ows->GPIOx->IDR >> ows->GPIO_Pin) & 1;
 }
 
@@ -45,11 +45,39 @@ int read_wire(OneWire_t *ows){
  *   GPIOx: Base of the GPIO DQ used, e.g. GPIOA
  *   GPIO_Pin: The pin GPIO DQ used, e.g. 5
  */
+
+ #define SkipROM 0xCC
+ #define WriteScratchpad 0x4E
+ #define AlarmTL 0x8A
+ #define AlarmTH 0x64
+ #define Precision 0x7F
+ #define CopyScratchpad 0x48
+
 void OneWire_Init(OneWire_t* OneWireStruct, GPIO_TypeDef* GPIOx, uint32_t GPIO_Pin) {
 	// TODO
+    /*DisableINT();
+    OneWire_Reset(&OneWireStruct);
+    OneWire_WriteByte(SkipROM);
+    OneWire_WriteByte(WriteScratchpad);
+    OneWire_WriteByte(AlarmTL);
+    OneWire_WriteByte(AlarmTH);
+    OneWire_WriteByte(Precision);
+
+    ResetDS18B20();
+    OneWire_WriteByte(SkipROM);
+    OneWire_WriteByte(CopyScratchpad);
+    EnableINT();
+
+    while(!GetDQ());  */
+
+
     OneWireStruct->GPIOx = GPIOx;
     OneWireStruct->GPIO_Pin = GPIO_Pin;
+    set_input(OneWireStruct);
+    OneWireStruct->GPIOx->OSPEEDR |= (1 << OneWireStruct->GPIO_Pin*2);
+    OneWireStruct->GPIOx->PUPDR= (GPIOB->PUPDR & (~3<<OneWireStruct->GPIO_Pin*2) ) | (1<<OneWireStruct->GPIO_Pin*2);
     return;
+
 }
 
 /* Send reset through OneWireStruct
@@ -60,21 +88,32 @@ void OneWire_Init(OneWire_t* OneWireStruct, GPIO_TypeDef* GPIOx, uint32_t GPIO_P
  *    0 -> Reset OK
  *    1 -> Reset Failed
  */
-uint8_t OneWire_Reset(OneWire_t* OneWireStruct) {
-	// TODO
+uint8_t OneWire_Reset(OneWire_t* OneWireStruct){
+	// TODO  input low output
+    int rtn;
+    set_input(OneWireStruct);
+    delay_ms(50);   //
+    //set_low(OneWireStruct);
     set_output(OneWireStruct);
-    // set dq low
-    set_low(OneWireStruct);
-    //delay
+    OneWireStruct->GPIOx->BRR=(1<<3);
     delay_ms(480);
     set_input(OneWireStruct);
 
-    delay_ms(80);
+    delay_ms(70);
 
-    while( read_wire(OneWireStruct) != 0);
-    delay_ms(500);
+    //while( read(OneWireStruct) != 0);
+    if(read(OneWireStruct))
+        rtn=1;
+    else
+        rtn=0;
+    delay_ms(410);
+    set_input(OneWireStruct);
+    //set_output(OneWireStruct);
 
-    return (uint8_t)0;
+    // set dq high
+    //set_high(OneWireStruct);
+
+    return rtn;
 }
 
 /* Write 1 bit through OneWireStruct
@@ -85,18 +124,24 @@ uint8_t OneWire_Reset(OneWire_t* OneWireStruct) {
  */
 void OneWire_WriteBit(OneWire_t* OneWireStruct, uint8_t bit) {
 	// TODO
+    set_input(OneWireStruct);
+    delay_ms(5);
     if(bit == 1){
-        set_output(OneWireStruct);
+
         set_low(OneWireStruct);
-        delay_ms(2);
+        set_output(OneWireStruct);
+        delay_ms(10);//
+
         set_input(OneWireStruct);
-        delay_ms(15);
+        delay_ms(55);//
+
     }
     else{
+    	set_low(OneWireStruct);
         set_output(OneWireStruct);
-        set_low(OneWireStruct);
-        delay_ms(80);
-        set_high(OneWireStruct);
+        delay_ms(65);//
+        set_input(OneWireStruct);//
+        delay_ms(5);
     }
 }
 
@@ -107,16 +152,23 @@ void OneWire_WriteBit(OneWire_t* OneWireStruct, uint8_t bit) {
  */
 uint8_t OneWire_ReadBit(OneWire_t* OneWireStruct) {
 	// TODO
-    unsigned int rtn;
+
+    int rtn = 1;
+    set_input(OneWireStruct);
+    delay_ms(5);
     set_output(OneWireStruct);
-    set_low(OneWireStruct);
+    set_high(OneWireStruct);
     delay_ms(2);
     set_input(OneWireStruct);
     delay_ms(5);
-    rtn = read_wire(OneWireStruct);
-    delay_ms(62);
+    if (read(OneWireStruct))
+        rtn=1;
+    else
+        rtn=0;
+    delay_ms(60);
+    set_input(OneWireStruct);
+    delay_ms(5);
     return rtn;
-
 }
 
 /* A convenient API to write 1 byte through OneWireStruct
@@ -127,14 +179,14 @@ uint8_t OneWire_ReadBit(OneWire_t* OneWireStruct) {
  */
 void OneWire_WriteByte(OneWire_t* OneWireStruct, uint8_t byte) {
 	// TODO
-    set_output(OneWireStruct);
-    set_low(OneWireStruct);
-    delay_ms(2);
+    //set_output(OneWireStruct);
+    //set_low(OneWireStruct);
+    //delay_ms(2);
     for(int i=0;i<8;++i){
         OneWire_WriteBit(OneWireStruct, byte&1);
         byte >>= 1;
     }
-    set_high(OneWireStruct);
+    //set_high(OneWireStruct);
     return;
 }
 
@@ -145,10 +197,12 @@ void OneWire_WriteByte(OneWire_t* OneWireStruct, uint8_t byte) {
  */
 uint8_t OneWire_ReadByte(OneWire_t* OneWireStruct) {
 	// TODO
-    unsigned int rtn = 0;
-    for(int i=0;i<8;++i){
-        rtn <<= 1;
-        rtn += OneWire_ReadBit(OneWireStruct);
+    int rtn=0;
+    for (int i=0;i<8;i++)
+    {
+        rtn >>= 1;
+        if (read(OneWireStruct))
+            rtn |= 0x80;
     }
     return rtn;
 }
