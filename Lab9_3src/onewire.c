@@ -1,12 +1,20 @@
 #include "onewire.h"
 
 void delay_us(unsigned int us){
-    SysTick->LOAD=us*4;              //time load
+    /*SysTick->LOAD=us*4;              //time load
     SysTick->CTRL|=0x01;             //countdown
     while(!(SysTick->CTRL&(1<<16))); //wait for time arrive
     SysTick->CTRL=0X00000000;        //shut down timer
     SysTick->VAL=0X00000000;         //clear timer
-    return;
+    return;*/
+    RCC->APB1ENR1 |= RCC_APB1ENR1_TIM2EN;
+	TIM2->PSC = 9;//
+	TIM2->EGR = TIM_EGR_UG;//Reinitialize the counter
+
+	TIM2->ARR=us;
+	TIM2->CR1 |= TIM_CR1_CEN;
+	while(TIM2->CNT< us-1);
+	TIM2->CR1 &= ~TIM_CR1_CEN;
 }
 
 void set_input(OneWire_t *ows){
@@ -57,11 +65,11 @@ int read_wire(OneWire_t *ows){
 
 void OneWire_Init(OneWire_t* OneWireStruct, GPIO_TypeDef* GPIOx, uint32_t GPIO_Pin) {
 
-    OneWireStruct->GPIOx = GPIOx;
-    OneWireStruct->GPIO_Pin = GPIO_Pin;
-    set_input(OneWireStruct);
-    OneWireStruct->GPIOx->OSPEEDR |= (1 << OneWireStruct->GPIO_Pin*2);
-    OneWireStruct->GPIOx->OSPEEDR &= ~(1 << (OneWireStruct->GPIO_Pin*2+1) );
+	OneWireStruct->GPIOx=GPIOx;
+	OneWireStruct->GPIO_Pin=GPIO_Pin;
+	OneWireStruct->GPIOx->MODER&=~(3<<OneWireStruct->GPIO_Pin*2); //input
+	OneWireStruct->GPIOx->OSPEEDR |= (2 << OneWireStruct->GPIO_Pin*2);
+	OneWireStruct->GPIOx->PUPDR=(GPIOB->PUPDR&(~3<<OneWireStruct->GPIO_Pin*2))|(1<<OneWireStruct->GPIO_Pin*2);
     return;
 }
 
@@ -75,35 +83,15 @@ void OneWire_Init(OneWire_t* OneWireStruct, GPIO_TypeDef* GPIOx, uint32_t GPIO_P
  */
 uint8_t OneWire_Reset(OneWire_t* OneWireStruct){
 	// TODO  input low output
-
-	int return_value;
-	OneWireStruct->GPIOx->MODER&=~(3<<OneWireStruct->GPIO_Pin*2); //input
-	delay_us(10);
-	OneWireStruct->GPIOx->MODER|=(GPIOB->MODER&(~3<<OneWireStruct->GPIO_Pin*2))|(1<<OneWireStruct->GPIO_Pin*2); //output
-	OneWireStruct->GPIOx->BRR=(1<<10);
-	delay_us(480);
-	OneWireStruct->GPIOx->MODER&=~(3<<OneWireStruct->GPIO_Pin*2); //input
-	delay_us(70);
-	/* Check bit value */
-	if(OneWireStruct->GPIOx->IDR&=(1<<OneWireStruct->GPIO_Pin)){
-		return_value=1;
-	}else{
-		return_value=0;
-	}
-	delay_us(410);
-	OneWireStruct->GPIOx->MODER&=~(3<<OneWireStruct->GPIO_Pin*2); //input
-	return return_value;
-    /*set_input(OneWireStruct);
-    delay_us(10);
     set_output(OneWireStruct);
-    set_high(OneWireStruct);
-    delay_us(480);
+    set_low(OneWireStruct);
+    delay_us(600);
     set_input(OneWireStruct);
-    delay_us(70);
+    delay_us(80);
 
     int rtn = read_wire(OneWireStruct);
-    delay_us(410);
-    return rtn;*/
+    delay_us(600);
+    return rtn;
 }
 
 /* Write 1 bit through OneWireStruct
