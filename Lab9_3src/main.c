@@ -40,9 +40,14 @@ int cgram[2][8]={
     }
 };
 
+float read_temperature();
+
+void WriteToLCD(int input, bool isCmd);
 
 void SysTick_Handler(void) {
-
+	int temp = (int)read_temperature();
+	WriteToLCD(temp/10, false);
+	WriteToLCD(temp%10, false);
 }
 
 void GPIO_init(void){
@@ -143,11 +148,15 @@ void display_41(){
 
 float read_temperature(void){
 
+	float rtn = 0.0f;
 	OneWire_t one_wire_structure;
 	OneWire_Init(&one_wire_structure, GPIOB, 3);
 	OneWire_Reset(&one_wire_structure);
+	DS18B20_ConvT(&one_wire_structure, TM_DS18B20_Resolution_9bits);
+	while(DS18B20_Done(&one_wire_structure));
+	DS18B20_Read(&one_wire_structure, &rtn);
 
-	return 0.1;
+	return rtn;
 }
 
 int main() {

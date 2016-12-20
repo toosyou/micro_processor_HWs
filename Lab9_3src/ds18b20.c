@@ -10,6 +10,14 @@
  */
 int DS18B20_ConvT(OneWire_t* OneWire, DS18B20_Resolution_t resolution) {
 	// TODO
+
+	// convert T
+	OneWire_Reset(OneWire);
+	OneWire_SkipROM(OneWire);
+	OneWire_WriteByte(OneWire, 0x44); // convert T
+
+	DS18B20_SetResolution(OneWire, resolution);
+
 	return 0;
 }
 
@@ -23,6 +31,22 @@ int DS18B20_ConvT(OneWire_t* OneWire, DS18B20_Resolution_t resolution) {
  */
 uint8_t DS18B20_Read(OneWire_t* OneWire, float *destination) {
 	// TODO
+	OneWire_Reset(OneWire);
+	OneWire_SkipROM(OneWire);
+	OneWire_WriteByte(OneWire, 0xBE);
+
+	unsigned int tmp = 0;
+	unsigned int get[9];
+	for(int i=0;i<9;++i){
+		get[i] = OneWire_ReadByte(OneWire);
+	}
+	tmp = get[1];
+	tmp = (tmp << 8) + get[0];
+	if( get[1] >= 0x80 )
+		tmp = 0xffff0000 | tmp;
+	*destination = tmp;
+	*destination /= 16.0f;
+
 	return 0;
 }
 
@@ -36,6 +60,15 @@ uint8_t DS18B20_Read(OneWire_t* OneWire, float *destination) {
  */
 uint8_t DS18B20_SetResolution(OneWire_t* OneWire, DS18B20_Resolution_t resolution) {
 	// TODO
+	// i want to write bytes
+	OneWire_Reset(OneWire);
+	OneWire_SkipROM(OneWire);
+	OneWire_WriteByte(OneWire, 0x4E);
+
+	OneWire_WriteByte(OneWire, 0 );
+	OneWire_WriteByte(OneWire, 0 );
+	OneWire_WriteByte(OneWire, (resolution-9)<<5 | (0b11111) );
+
 	return 0;
 }
 
@@ -48,5 +81,8 @@ uint8_t DS18B20_SetResolution(OneWire_t* OneWire, DS18B20_Resolution_t resolutio
  */
 uint8_t DS18B20_Done(OneWire_t* OneWire) {
 	// TODO
-	return 0;
+	set_output(OneWire);
+	if(read_wire(OneWire) == 1)
+		return 0; // done
+	return 1;
 }

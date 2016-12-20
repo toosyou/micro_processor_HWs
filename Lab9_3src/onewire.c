@@ -35,7 +35,7 @@ void set_high(OneWire_t *ows){
     return ;
 }
 
-int read(OneWire_t *ows){
+int read_wire(OneWire_t *ows){
     return (ows->GPIOx->IDR >> ows->GPIO_Pin) & 1;
 }
 
@@ -69,15 +69,10 @@ uint8_t OneWire_Reset(OneWire_t* OneWireStruct) {
     delay_ms(480);
     set_input(OneWireStruct);
 
-    delay_ms(60);
+    delay_ms(80);
 
-    while( read(OneWireStruct) != 0);
+    while( read_wire(OneWireStruct) != 0);
     delay_ms(500);
-
-    set_output(OneWireStruct);
-
-    // set dq high
-    set_high(OneWireStruct);
 
     return (uint8_t)0;
 }
@@ -112,46 +107,16 @@ void OneWire_WriteBit(OneWire_t* OneWireStruct, uint8_t bit) {
  */
 uint8_t OneWire_ReadBit(OneWire_t* OneWireStruct) {
 	// TODO
-    unsigned data;
-
-    set_high(OneWireStruct);
-    delay_ms(2);
+    unsigned int rtn;
+    set_output(OneWireStruct);
     set_low(OneWireStruct);
     delay_ms(2);
-    set_high(OneWireStruct);
     set_input(OneWireStruct);
-    delay_ms(4);
-    for(int i=0;i<8;i++)
-    {
-        if (GetDQ())
-            data|=0x80;
-        else
-            data&=0x7f;
-        
-    }
+    delay_ms(5);
+    rtn = read_wire(OneWireStruct);
     delay_ms(62);
-    return 0;
+    return rtn;
 
-    /*
- unsigned char i,Dat;  
- SetDQ();  /
- Delay_us(5);  /
- for(i=8;i>0;i--)  
- {  
-   Dat >>= 1;  
-    ResetDQ();     //从读时序开始到采样信号线必须在15u内，且采样尽量安排在15u的最后  
-  Delay_us(5);   //5us  
-  SetDQ();  
-  Delay_us(5);   //5us  
-  if(GetDQ())  
-    Dat|=0x80;  
-  else  
-   Dat&=0x7f;    
-  Delay_us(65);   //65us  
-  SetDQ();  
- }  
- return Dat; 
-    */
 }
 
 /* A convenient API to write 1 byte through OneWireStruct
@@ -180,7 +145,12 @@ void OneWire_WriteByte(OneWire_t* OneWireStruct, uint8_t byte) {
  */
 uint8_t OneWire_ReadByte(OneWire_t* OneWireStruct) {
 	// TODO
-    return 0;
+    unsigned int rtn = 0;
+    for(int i=0;i<8;++i){
+        rtn <<= 1;
+        rtn += OneWire_ReadBit(OneWireStruct);
+    }
+    return rtn;
 }
 
 /* Send ROM Command, Skip ROM, through OneWireStruct
@@ -188,4 +158,5 @@ uint8_t OneWire_ReadByte(OneWire_t* OneWireStruct) {
  */
 void OneWire_SkipROM(OneWire_t* OneWireStruct) {
 	// TODO
+    OneWire_WriteByte(OneWireStruct, 0xCC);
 }
