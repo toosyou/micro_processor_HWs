@@ -29,23 +29,20 @@ int DS18B20_ConvT(OneWire_t* OneWire, DS18B20_Resolution_t resolution) {
  *    0 -> OK
  *    1 -> Error
  */
-uint8_t DS18B20_Read(OneWire_t* OneWire, float *destination) {
+uint8_t DS18B20_Read(OneWire_t* OneWire, float *destination, DS18B20_Resolution_t resolution) {
 	// TODO
 	OneWire_Reset(OneWire);
 	OneWire_SkipROM(OneWire);
 	OneWire_WriteByte(OneWire, 0xBE);
 
 	unsigned int tmp = 0;
-	unsigned int get[9];
-	for(int i=0;i<9;++i){
-		get[i] = OneWire_ReadByte(OneWire);
-	}
-	tmp = get[1];
-	tmp = (tmp << 8) + get[0];
-	if( get[1] >= 0x80 )
-		tmp = 0xffff0000 | tmp;
-	*destination = tmp;
-	*destination /= 16.0f;
+	tmp |= OneWire_ReadByte(OneWire);
+	tmp |= OneWire_ReadByte(OneWire) << 8;
+	//if( get[1] >= 0x80 )
+	//	tmp |= 0xffff0000;
+	*destination = (float)(tmp >> (12 - resolution) );
+	for(int i=0;i<(resolution-8);++i)
+		*destination *= 0.5f;
 
 	return 0;
 }

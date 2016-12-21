@@ -7,14 +7,23 @@ void delay_us(unsigned int us){
     SysTick->CTRL=0X00000000;        //shut down timer
     SysTick->VAL=0X00000000;         //clear timer
     return;*/
-    RCC->APB1ENR1 |= RCC_APB1ENR1_TIM2EN;
-	TIM2->PSC = 9;//
-	TIM2->EGR = TIM_EGR_UG;//Reinitialize the counter
-
-	TIM2->ARR=us;
+	RCC->APB1ENR1 |= 0b1;
+	if ((uint32_t) (us * 0.1) == 0)
+		TIM2->ARR = 1;
+	else
+		TIM2->ARR = (uint32_t) (us * 0.1);
+	TIM2->PSC = (uint32_t) 39999;
+	TIM2->EGR = TIM_EGR_UG;
 	TIM2->CR1 |= TIM_CR1_CEN;
-	while(TIM2->CNT< us-1);
-	TIM2->CR1 &= ~TIM_CR1_CEN;
+	int pre_val = 0;
+	while (1) {
+		int now_val = TIM2->CNT;
+		if (pre_val > now_val) {
+			TIM2->CR1 &= ~TIM_CR1_CEN;
+			return;
+		}
+		pre_val = now_val;
+	}
 }
 
 void set_input(OneWire_t *ows){
@@ -35,13 +44,13 @@ void set_output(OneWire_t *ows){
 void set_low(OneWire_t *ows){   //set to 0
     // set dq low
     //ows->GPIOx->ODR &= ~(1 << ows->GPIO_Pin);
-    ows->GPIOx->BRR |= (1 << ows->GPIO_Pin);
+    ows->GPIOx->BRR = (1 << ows->GPIO_Pin);
     return ;
 }
 
 void set_high(OneWire_t *ows){  //set to 1
     //ows->GPIOx->ODR |= 1 << ows->GPIO_Pin;
-    ows->GPIOx->BSRR |= (1 << ows->GPIO_Pin);
+    ows->GPIOx->BSRR = (1 << ows->GPIO_Pin);
     return ;
 }
 
@@ -84,14 +93,16 @@ void OneWire_Init(OneWire_t* OneWireStruct, GPIO_TypeDef* GPIOx, uint32_t GPIO_P
 uint8_t OneWire_Reset(OneWire_t* OneWireStruct){
 	// TODO  input low output
     set_output(OneWireStruct);
+    set_high(OneWireStruct);
+    delay(80);
     set_low(OneWireStruct);
-    delay_us(600);
-    set_input(OneWireStruct);
-    delay_us(80);
-
-    int rtn = read_wire(OneWireStruct);
-    delay_us(600);
-    return rtn;
+    delay(500);
+    set_high(OneWireStruct);
+    delay(80);
+    while(read_wire(OneWireStruct));
+    delay(500);
+    set_high(OneWireStruct);
+    return 0;
 }
 
 /* Write 1 bit through OneWireStruct
@@ -102,25 +113,16 @@ uint8_t OneWire_Reset(OneWire_t* OneWireStruct){
  */
 void OneWire_WriteBit(OneWire_t* OneWireStruct, uint8_t bit) {
 	// TODO
-    set_input(OneWireStruct);
-    delay_us(5);
-    if(bit == 1){
-
-        set_low(OneWireStruct);
-        set_output(OneWireStruct);
-        delay_us(10);//
-
-        set_input(OneWireStruct);
-        delay_us(55);//
-
-    }
-    else{
-    	set_low(OneWireStruct);
-        set_output(OneWireStruct);
-        delay_us(65);//
-        set_input(OneWireStruct);//
-        delay_us(5);
-    }
+    set_high(OneWireStruct);
+    delay(80);
+    set_low(OneWireStruct);
+    delay(5);
+    if(bit == 1)
+        set_high(OneWireStruct);
+    delay(75);
+    set_high(OneWireStruct);
+    delay(2);
+    return;
 }
 
 /* Read 1 bit through OneWireStruct
@@ -131,21 +133,15 @@ void OneWire_WriteBit(OneWire_t* OneWireStruct, uint8_t bit) {
 uint8_t OneWire_ReadBit(OneWire_t* OneWireStruct) {
 	// TODO
 
-    int rtn = 1;
-    set_input(OneWireStruct);
-    delay_us(5);
-    set_output(OneWireStruct);
+    uint8_t rtn = 0;
+    set_low(OneWireStruct);
+    delay(4);
     set_high(OneWireStruct);
-    delay_us(2);
-    set_input(OneWireStruct);
-    delay_us(5);
+    delay(4);
     if (read_wire(OneWireStruct))
         rtn=1;
-    else
-        rtn=0;
-    delay_us(60);
-    set_input(OneWireStruct);
-    delay_us(5);
+    delay(75);
+    set_high(OneWireStruct);
     return rtn;
 }
 
@@ -175,12 +171,9 @@ void OneWire_WriteByte(OneWire_t* OneWireStruct, uint8_t byte) {
  */
 uint8_t OneWire_ReadByte(OneWire_t* OneWireStruct) {
 	// TODO
-    int rtn=0;
-    for (int i=0;i<8;i++)
-    {
-        rtn >>= 1;
-        if (read_wire(OneWireStruct))
-            rtn |= 0x80;
+    uint8_t rtn=0;
+    for (int i=0;i<8;i++){
+        rtn |= OneWire_ReadBit(OneWireStruct) << i;
     }
     return rtn;
 }

@@ -3,6 +3,8 @@
 
 #include "stm32l476xx.h"
 
+extern void delay(int us);
+
 typedef struct {
 	GPIO_TypeDef* GPIOx;           /*!< GPIOx port to be used for I/O functions */
 	uint32_t GPIO_Pin;             /*!< GPIO Pin to be used for I/O functions */

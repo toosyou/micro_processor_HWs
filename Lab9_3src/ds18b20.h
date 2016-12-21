@@ -12,7 +12,7 @@ typedef enum {
 
 
 int DS18B20_ConvT(OneWire_t* OneWire, DS18B20_Resolution_t precision);
-uint8_t DS18B20_Read(OneWire_t* OneWireStruct, float* destination);
+uint8_t DS18B20_Read(OneWire_t* OneWireStruct, float* destination, DS18B20_Resolution_t resolution);
 uint8_t DS18B20_SetResolution(OneWire_t* OneWireStruct, DS18B20_Resolution_t resolution);
 uint8_t DS18B20_Done(OneWire_t* OneWireStruct);
 
