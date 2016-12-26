@@ -2,15 +2,72 @@
 #include "core_cm4.h"
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 
-int UART_Transmit(uint8_t *arr, uint32_t size) {
-	//TODO: Send str to UART and return how many bytes are successfully transmitted.
+typedef unsigned int bool;
+#define false 0
+#define true 1
 
+void set_baud_rate_uart(USART_TypeDef *usart, int fck, int baud){
+	usart->BRR = (fck + baud / 2) / baud;
+	return;
 }
 
-void init_UART() {
-	// Initialize UART registers
+void set_length_word_uart(USART_TypeDef *usart, int length){
+	if(length == 7){ // 10
+		usart->CR1 |= USART_CR1_M1;
+		usart->CR1 &= ~USART_CR1_M0;
+	}
+	else if(length == 8){ // 00
+		usart->CR1 &= ~USART_CR1_M1;
+		usart->CR1 &= ~USART_CR1_M0;
+	}
+	else if(length == 9){ // 01
+		usart->CR1 &= ~USART_CR1_M1;
+		usart->CR1 |= USART_CR1_M0;
+	}
+	return;
+}
+
+void set_length_stop_uart(USART_TypeDef *usart, int length){
+	//0 -> 1
+	//1 -> 0.5
+	//2 -> 2
+	//3 -> 1.5
+	usart->CR2 &= ~USART_CR2_STOP_Msk;
+	usart->CR2 |= length << USART_CR2_STOP_Pos;
+	return;
+}
+
+void enable_rt_usart(USART_TypeDef *usart, int rx, int tx){
+	usart->CR1 &= ~(3 << 2); // clear
+	usart->CR1 |= rx << USART_CR1_RE_Pos;
+	usart->CR1 |= tx << USART_CR1_TE_Pos;
+	return;
+}
+
+void enable_usart(USART_TypeDef *usart){
+	usart->CR1 |= USART_CR1_UE;
+	return;
+}
+
+int flag_status_usart(USART_TypeDef *usart, int flag){
+	return usart->ISR & flag;
+}
+
+int UART_Transmit(USART_TypeDef *usart, char *arr, uint32_t size) {
+
+	for(unsigned int i=0;i<size;++i){
+		//Transmit data register empty
+		while(!flag_status_usart(usart, USART_ISR_TXE));
+
+		usart->TDR = arr[i];
+		//Transmission complete
+		while(!flag_status_usart(usart, USART_ISR_TC));
+	}
+
+	return 0;
 }
 
 void SysTickConfig(int tick){
@@ -27,7 +84,8 @@ void SysTick_Handler(){
 }
 
 void GPIO_Init(void) {
-	RCC->AHB2ENR |= (RCC_AHB2ENR_GPIOAEN);
+	RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN;
+	RCC->AHB2ENR |= RCC_AHB2ENR_GPIOCEN;
 	// UART //PA9,PA10
 	GPIOA->MODER &= ~(0b11 << (9*2));
 	GPIOA->MODER &= ~(0b11 << (10*2));
@@ -43,79 +101,58 @@ void GPIO_Init(void) {
 	GPIOA->AFR[10 >> 3] |= (7 << ((10 & 7) << 2));
 	GPIOA->OSPEEDR &= ~(0b11 << (9*2));
 	GPIOA->OSPEEDR &= ~(0b11 << (10*2));
-	RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
-	RCC->APB2RSTR |= RCC_APB2RSTR_USART1RST;
-	RCC->APB2RSTR &= ~RCC_APB2RSTR_USART1RST;
 
 	// BUTTON	//PC13
 	GPIOC->MODER &= ~(0b11 << (13*2));
-	GPIOC->MODER |= (0b01 <<(13*2));
+	GPIOC->MODER |= (0b00 <<(13*2));
 	GPIOC->OSPEEDR &= ~(0b11 << (13*2));
 	GPIOC->OSPEEDR |= ~(0b01 << (13*2));
 	GPIOC->OTYPER &= ~(1 << 13);
 	GPIOC->PUPDR &= ~(0b11 << (13 * 2));
 }
-int button_debounce(){
-	int cnt = 0;
-	for(int i=500;i--; )
-		cnt += (GPIOC->IDR >> 13) & 1;
-	return cnt < 100;
+
+bool bottom_clicked(void){
+    static int debounce = 0;
+    if( (GPIOC->IDR & 0b10000000000000) == 0 ){ // pressing
+        debounce = debounce+1 > 500 ? 500 : debounce+1;
+    }
+    else{
+        if(debounce >= 500){
+            debounce = 0;
+            return true;
+        }
+        else
+            debounce = 0;
+    }
+    return false;
 }
 
-typedef struct{
+void usart_init(void) {
 
-};
-
-void USART_Init(void) {
-
-	/* Enable clock for USART??? */
 	RCC->APB2ENR |= RCC_APB2ENR_USART1EN;
 	RCC->APB2RSTR |= RCC_APB2RSTR_USART1RST;
 	RCC->APB2RSTR &= ~RCC_APB2RSTR_USART1RST;
-	USART_SetBaudRate(USART1,int cpuRate 4, int baudRate);
-	USARTSetWordLength(USART1,8);
-	USARTSetStopBit(USART1,0);
 
-
-	// CR1
-	MODIFY_REG(USART1->CR1, USART_CR1_M);
-	// CR2
-	MODIFY_REG(USART???->CR2, USART_CR2_STOP, 0x0); // 1-bit stop
-	// CR3
-	MODIFY_REG(USART???->CR3, (USART_CR3_RTSE | USART_CR3_CTSE | USART_CR3_ONEBIT), 0x0); // none hwflowctl
-	MODIFY_REG(USART???->BRR, 0xFF, 4000000L/???? L);
-	/* In asynchronous mode, the following bits must be kept cleared:
-	- LINEN and CLKEN bits in the USART_CR2 register,
-	- SCEN, HDSEL and IREN bits in the USART_CR3 register.*/
-	USART???->CR2 &= ~(USART_CR2_LINEN | USART_CR2_CLKEN);
-	USART???->CR3 &= ~(USART_CR3_SCEN | USART_CR3_HDSEL | USART_CR3_IREN);
-	// Enable UART
-	USART???->CR1 |= (USART_CR1_UE);
+	set_baud_rate_uart( USART1, 4000000, 9600);
+	set_length_word_uart( USART1, 8);
+	set_length_stop_uart( USART1, 0); // 1 bit
+	enable_rt_usart(USART1, 1, 1);
+	enable_usart(USART1);
 }
 
-void ONE(){
-	RCC->AHB2ENR |= RCC_AHB2ENR_GPIOCEN;
-	GPIOC->MODER &= ~(0b11 << (13 * 2));
-	int last = 0;	//?
-	while(1){
-		int x = botton_debounce();
-		if(x == 1 && last == 0){
-			USARTPrintString(USART1, "Hello World!");
-		}
-		last = x;
-	}
-}
 
 int main(){
-	//SCB->CPACR |= (0xF << 20);
-
-	__DSB();
-	__ISB();
-	GPIO_init();
-	USART_init();
-	//ADCInit();
+	SCB->CPACR |= (0xF << 20);
+	GPIO_Init();
 	SysTickConfig(40000);
-	ONE();
-	while(1);
+	usart_init();
+
+	while(1){
+		if(bottom_clicked() == true){
+			char message[50] = "HeI10, W0r1d!";
+			UART_Transmit(USART1, message, strlen(message));
+		}
+	}
+
 	return 0;
 }
