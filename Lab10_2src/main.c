@@ -4,71 +4,9 @@
 #include <stdio.h>
 #include <string.h>
 
-
 typedef unsigned int bool;
 #define false 0
 #define true 1
-
-void set_baud_rate_uart(USART_TypeDef *usart, int fck, int baud){
-	usart->BRR = (fck + baud / 2) / baud;
-	return;
-}
-
-void set_length_word_uart(USART_TypeDef *usart, int length){
-	if(length == 7){ // 10
-		usart->CR1 |= USART_CR1_M1;
-		usart->CR1 &= ~USART_CR1_M0;
-	}
-	else if(length == 8){ // 00
-		usart->CR1 &= ~USART_CR1_M1;
-		usart->CR1 &= ~USART_CR1_M0;
-	}
-	else if(length == 9){ // 01
-		usart->CR1 &= ~USART_CR1_M1;
-		usart->CR1 |= USART_CR1_M0;
-	}
-	return;
-}
-
-void set_length_stop_uart(USART_TypeDef *usart, int length){
-	//0 -> 1
-	//1 -> 0.5
-	//2 -> 2
-	//3 -> 1.5
-	usart->CR2 &= ~USART_CR2_STOP_Msk;
-	usart->CR2 |= length << USART_CR2_STOP_Pos;
-	return;
-}
-
-void enable_rt_usart(USART_TypeDef *usart, int rx, int tx){
-	usart->CR1 &= ~(3 << 2); // clear
-	usart->CR1 |= rx << USART_CR1_RE_Pos;
-	usart->CR1 |= tx << USART_CR1_TE_Pos;
-	return;
-}
-
-void enable_usart(USART_TypeDef *usart){
-	usart->CR1 |= USART_CR1_UE;
-	return;
-}
-
-int flag_status_usart(USART_TypeDef *usart, int flag){
-	return usart->ISR & flag;
-}
-
-int UART_Transmit(USART_TypeDef *usart, char *arr, uint32_t size) {
-
-	for(unsigned int i=0;i<size;++i){
-		//Transmit data register empty
-		while(!flag_status_usart(usart, USART_ISR_TXE));
-
-		usart->TDR = arr[i];
-		//Transmission complete
-		while(!flag_status_usart(usart, USART_ISR_TC));
-	}
-
-	return 0;
-}
 
 void SysTickConfig(int tick){
 	SysTick->CTRL &= ~(SysTick_CTRL_ENABLE_Msk);
@@ -160,6 +98,19 @@ void ADC_init(void){
 	ADC_Enable(ADC1);
 }
 
+void TWO(void){
+	RCC->AHB2ENR |= RCC_AHB2ENR_GPIOCEN;	//PC enable
+	GPIOC->MODER &= ~(0b11 << (13 * 2));	//PC13
+	int last = 0;
+	while(1){
+		if(( bottom_clicked() ) && !last){
+			char s[20];
+			sprintf(s, "%f\n", resistor);
+			USARTPrintString(USART1, s);
+		}
+		last = x;
+	}
+}
 
 int main(){
 	SCB->CPACR |= (0xF << 20);
@@ -167,13 +118,14 @@ int main(){
 	SysTickConfig(40000);
 	usart_init();
 	ADC_init();
-
+	TWO();
+	/*
 	while(1){
 		if(bottom_clicked() == true){
 			char message[50] = "HeI10, W0r1d!";
 			UART_Transmit(USART1, message, strlen(message));
 		}
 	}
-
+	*/
 	return 0;
 }
