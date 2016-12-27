@@ -191,6 +191,7 @@ void ADC1_2_IRQHandler(void){
 	resistor = ( 5.0f - voltage ) * 10000.0f / voltage;
 	return;
 }
+
 void GPIO_Init(void) {
 	RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN;
 	RCC->AHB2ENR |= RCC_AHB2ENR_GPIOCEN;
@@ -217,6 +218,10 @@ void GPIO_Init(void) {
 	GPIOC->OSPEEDR |= ~(0b01 << (13*2));
 	GPIOC->OTYPER &= ~(1 << 13);
 	GPIOC->PUPDR &= ~(0b11 << (13 * 2));
+
+	RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN;
+	GPIOA->MODER &= ~(0b11 << (5 * 2));
+	GPIOA->MODER |= (0b01 << (5 * 2));	//PA5
 }
 
 bool bottom_clicked(void){
@@ -274,7 +279,6 @@ int USART_GetWord(USART_TypeDef *usart){
 	return usart->RDR & 0x1FF;
 }
 
-
 int USART_GetCommand(USART_TypeDef *usart, char *ptr, int len){
 	len--;
 	char x;
@@ -284,59 +288,166 @@ int USART_GetCommand(USART_TypeDef *usart, char *ptr, int len){
 			ptr[i] = 0;
 			UART_Transmit(usart, "\r\n",3);
 			return i;
-		}else if(x == 127){
+		}
+		else if(x == 127){ //back
 			if(i){
 				i--;
-				UART_Transmit(usart, x,strlen(x));
+				UART_Transmit(usart, &x, 1);
 			}
 			i--;
-		}else{
-			UART_Transmit(usart, x,strlen(x));
+		}
+		else{
+			UART_Transmit(usart, &x, 1);
 			ptr[i] = x;
 		}
 	}
 	return len;
 }
 
+void timer_init(void){
+	RCC->APB1ENR1 |= RCC_APB1ENR1_TIM2EN;
+	TIM2->PSC = 2000 - 1;
+	TIM2->ARR = 1000 - 1;
+	TIM2->DIER |= TIM_DIER_TIE;
+	TIM2->DIER |= TIM_DIER_UIE;
+	TIM2->EGR |= TIM_EGR_UG;
+	TIM2->CR1 |= TIM_CR1_CEN;
+}
+
+void tim2_handler(void){
+	char message[50] = {0};
+	sprintf(message, "%f Ω\n", resistor);
+	UART_Transmit(USART1, message, strlen(message));
+	TIM2->SR &= ~(TIM_SR_UIF);
+	return;
+}
+
+void mazu_bless(void){
+	char message[5000] ="\n\
+		//\n\
+		//                       _oo0oo_\n\
+		//                      o8888888o\n\
+		//                      88\" . \"88\n\
+		//                      (| -_- |)\n\
+		//                      0\\  =  /0\n\
+		//                    ___/`---'\\___\n\
+		//                  .' \\\\|     |// '.\n\
+		//                 / \\\\|||  :  |||// \\\n\
+		//                / _||||| -:- |||||- \\\n\
+		//               |   | \\\\\\  -  /// |   |\n\
+		//               | \\_|  ''\\---/''  |_/ |\n\
+		//               \\  .-\\__  '-'  ___/-. /\n\
+		//             ___'. .'  /--.--\\  `. .'___\n\
+		//          .\"\" '<  `.___\\_<|>_/___.' >' \"\".\n\
+		//         | | :  `- \\`.;`\\ _ /`;.`/ - ` : | |\n\
+		//         \\  \\ `_.   \\_ __\\ /__ _/   .-` /  /\n\
+		//     =====`-.____`.___ \\_____/___.-`___.-'=====\n\
+		//                       `=---='\n\
+		//\n\
+		//\n\
+		//     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\
+		//\n\
+		//               佛祖保佑         永無bug\n\
+		//\n\
+		//***************************************************\n";
+
+	UART_Transmit(USART1, message, strlen(message));
+	return;
+}
+
+void jesus_bless(){
+	char message[3000] = "\n\
+	//                                 |~~~~~~~|\n\
+	//                                 |       |\n\
+	//                                 |       |\n\
+	//                                 |       |\n\
+	//                                 |       |\n\
+	//                                 |       |\n\
+	//      |~.\\\\\\_\\~~~~~~~~~~~~~~xx~~~         ~~~~~~~~~~~~~~~~~~~~~/_//;~|\n\
+	//      |  \\  o \\_         ,XXXXX),                         _..-~ o /  |\n\
+	//      |    ~~\\  ~-.     XXXXX`)))),                 _.--~~   .-~~~   |\n\
+	//       ~~~~~~~`\\   ~\\~~~XXX' _/ ';))     |~~~~~~..-~     _.-~ ~~~~~~~\n\
+	//                `\\   ~~--`_\\~\\, ;;;\\)__.---.~~~      _.-~\n\
+	//                  ~-.       `:;;/;; \\          _..-~~\n\
+	//                     ~-._      `''        /-~-~\n\
+	//                         `\\              /  /\n\
+	//                           |         ,   | |\n\
+	//                            |  '        /  |\n\
+	//                             \\/;          |\n\
+	//                              ;;          |\n\
+	//                              `;   .       |\n\
+	//                              |~~~-----.....|\n\
+	//                             | \\             \\\n\
+	//                            | /\\~~--...__    |\n\
+	//                            (|  `\\       __-\\|\n\
+	//                            ||    \\_   /~    |\n\
+	//                            |)     \\~-'      |\n\
+	//                             |      | \\      '\n\
+	//                             |      |  \\    :\n\
+	//                              \\     |  |    |\n\
+	//                               |    )  (    )\n\
+	//                                \\  /;  /\\  |\n\
+	//                                |    |/   |\n\
+	//                                |    |   |\n\
+	//                                 \\  .'  ||\n\
+	//                                 |  |  | |\n\
+	//                                 (  | |  |\n\
+	//                                 |   \\ \\ |\n\
+	//                                 || o `.)|\n\
+	//                                 |`\\\\\\\\) |\n\
+	//                                 |       |\n\
+	//                                 |       |\n\
+	//    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\
+	//\n\
+	//                      耶穌保佑                永無 BUG\n";
+	UART_Transmit(USART1, message, strlen(message));
+	return;
+}
+
 int main(){
-	SCB->CPACR |= (0xF << 20);
+	SCB->CPACR |= (0xF << 20);//float
 	GPIO_Init();
 	SysTickConfig(40000);
 	usart_init();
 	ADC_init();
+	timer_init();
+	mazu_bless();
+	char cmd[200] = {0};
 	while(1){
-		if(bottom_clicked() == true){
-			RCC->AHB2ENR |= RCC_AHB2ENR_GPIOAEN;
-			GPIOA->MODER &= ~(0b11 << (5 * 2));
-			GPIOA->MODER |= (0b01 << (5 * 2));	//PA5
-			RCC->APB1ENR1 |= RCC_APB1ENR1_TIM2EN;
-			TIM2->PSC = 2000 - 1;
-			TIM2->ARR = 1000 - 1;
-			TIM2->DIER |= TIM_DIER_TIE;
-			TIM2->DIER |= TIM_DIER_UIE;
-			TIM2->EGR |= TIM_EGR_UG;
-			TIM2->CR1 |= TIM_CR1_CEN;
-			char s[200];
-			while(1){
-				UART_Transmit(USART1, ">",2);
-				int len = USART_GetCommand(USART1, s, 200);
-				if(!strcmp(s, "showid")){
-					UART_Transmit(USART1, "0316313\r\n",10);
-				}else if(!strcmp(s, "light")){
-					NVIC_EnableIRQ(TIM2_IRQn);
-					while(USART_GetWord(USART1) != 'q');
-					NVIC_DisableIRQ(TIM2_IRQn);
-					UART_Transmit(USART1, "\r\n",3);
-				}else if(!strcmp(s, "led on")){
-					GPIOA->BSRR = 1 << 5;
-				}else if(!strcmp(s, "led off")){
-					GPIOA->BRR = 1 << 5;
-				}else if(len){
-					UART_Transmit(USART1, "Unknown Command: ",18);
-					UART_Transmit(USART1, s,strlen(s));
-					UART_Transmit(USART1, "\r\n",3);
-				}
-			}
+		UART_Transmit(USART1, ">", 2);
+		int length = USART_GetCommand(USART1, cmd, 200);
+
+		if( strcmp(cmd, "showid") == 0 )
+			UART_Transmit(USART1, "0316313\r\n",10);
+
+		else if(strcmp(cmd, "led on") == 0)
+			GPIOA->BSRR = 1 << 5;
+
+		else if(strcmp(cmd, "led off") == 0)
+			GPIOA->BRR = 1 << 5;
+
+		else if( strcmp(cmd, "light") == 0){
+			NVIC_EnableIRQ(TIM2_IRQn);
+			while(USART_GetWord(USART1) != 'q');
+			NVIC_DisableIRQ(TIM2_IRQn);
+			UART_Transmit(USART1, "\r\n",3);
+		}
+
+		else if( strcmp(cmd, "mazu") == 0)
+			mazu_bless();
+
+		else if( strcmp(cmd, "jesus") == 0)
+			jesus_bless();
+
+		else if( strcmp(cmd, "clear") == 0){
+			for(int i=0;i<30;++i)
+				UART_Transmit(USART1, "\r\n", 3);
+		}
+
+		else if(length){
+			UART_Transmit(USART1, "Unknown Command: ",18);
+			UART_Transmit(USART1, cmd, strlen(cmd));
+			UART_Transmit(USART1, "\r\n",3);
 		}
 	}
 	return 0;
