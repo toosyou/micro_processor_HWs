@@ -268,11 +268,11 @@ void ADC_init(void){
 	enable_adc(ADC1);
 }
 
+
 int USART_GetWord(USART_TypeDef *usart){
 	while(!flag_status_usart(usart, USART_ISR_RXNE));
 	return usart->RDR & 0x1FF;
 }
-
 
 
 int USART_GetCommand(USART_TypeDef *usart, char *ptr, int len){
