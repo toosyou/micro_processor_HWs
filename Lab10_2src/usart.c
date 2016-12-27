@@ -15,18 +15,18 @@ int USART_GetData(USART_TypeDef *usart){
 	return usart->RDR & 0x1FF;
 }
 
-void USARTEnableRXTX(USART_TypeDef *usart, int rx, int tx){
+void USART_EnableRXTX(USART_TypeDef *usart, int rx, int tx){
 	usart->CR1 &= ~(3 << 2);
 	usart->CR1 |= rx << USART_CR1_RE_Pos;
 	usart->CR1 |= tx << USART_CR1_TE_Pos;
 }
 
-void USARTEnable(USART_TypeDef *usart){
+void USART_Enable(USART_TypeDef *usart){
 	usart->CR1 |= USART_CR1_UE;
 }
 
 
-int USARTGetLine(USART_TypeDef *usart, char *ptr, int len){
+int USART_GetLine(USART_TypeDef *usart, char *ptr, int len){
 	len--;
 	char x;
 	for(int i=0;i<len;i++){
